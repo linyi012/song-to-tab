@@ -10,6 +10,8 @@ import {
 } from "./api";
 import { TabPlayer, PLAYBACK_SPEEDS, type PlaybackSpeed } from "./player";
 import TabView, { type TabViewHandle } from "./TabView";
+import StaffView, { type StaffViewHandle } from "./StaffView";
+import { downloadMusicXml } from "./staffExport";
 import SourceAudioPlayer, { base64ToAudioUrl } from "./SourceAudioPlayer";
 import { IconPause, IconPlay, IconStop } from "./TransportIcons";
 import {
@@ -74,7 +76,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [advancedOk, setAdvancedOk] = useState<boolean | null>(null);
   const [separateOk, setSeparateOk] = useState<boolean | null>(null);
-  const [view, setView] = useState<"svg" | "ascii">("svg");
+  const [view, setView] = useState<"svg" | "staff" | "ascii">("svg");
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
@@ -83,6 +85,7 @@ export default function App() {
   );
   const inputRef = useRef<HTMLInputElement>(null);
   const tabRef = useRef<TabViewHandle>(null);
+  const staffRef = useRef<StaffViewHandle>(null);
   const playerRef = useRef<TabPlayer | null>(null);
   const rafRef = useRef<number>(0);
 
@@ -309,7 +312,16 @@ export default function App() {
   };
 
   const exportPng = () => {
+    if (view === "staff") {
+      staffRef.current?.exportPng(result?.filename);
+      return;
+    }
     tabRef.current?.exportPng(result?.filename);
+  };
+
+  const exportMusicXml = () => {
+    if (!result?.musicxml) return;
+    downloadMusicXml(result.musicxml, result.filename);
   };
 
   return (
@@ -318,7 +330,7 @@ export default function App() {
         <h1>
           听歌<span className="pick">扒谱</span>
         </h1>
-        <p>上传音频，自动识别并生成吉他六线谱（TAB）</p>
+        <p>上传音频，自动识别并生成吉他六线谱（TAB）与五线谱</p>
       </header>
 
       {/* 1. 上传 */}
@@ -564,7 +576,13 @@ export default function App() {
               className={view === "svg" ? "active" : ""}
               onClick={() => setView("svg")}
             >
-              可视化谱
+              可视化六线谱
+            </button>
+            <button
+              className={view === "staff" ? "active" : ""}
+              onClick={() => setView("staff")}
+            >
+              五线谱
             </button>
             <button
               className={view === "ascii" ? "active" : ""}
@@ -573,9 +591,14 @@ export default function App() {
               ASCII 六线谱
             </button>
             <div style={{ flex: 1 }} />
-            {view === "svg" && hasTabContent && (
+            {(view === "svg" || view === "staff") && hasTabContent && (
               <button className="btn ghost" onClick={exportPng}>
                 导出 PNG
+              </button>
+            )}
+            {view === "staff" && result.musicxml && (
+              <button className="btn ghost" onClick={exportMusicXml}>
+                下载 MusicXML
               </button>
             )}
             <button className="btn ghost" onClick={copyTab}>
@@ -717,6 +740,16 @@ export default function App() {
                   filename={result.filename}
                   currentTime={currentTime}
                   activeNotes={activeNotes}
+                />
+              ) : view === "staff" ? (
+                <StaffView
+                  ref={staffRef}
+                  musicxml={result.musicxml}
+                  notes={result.notes}
+                  tempo={result.tempo}
+                  duration={result.duration}
+                  currentTime={currentTime}
+                  filename={result.filename}
                 />
               ) : (
                 <pre className="tab-ascii">{result.ascii_tab}</pre>

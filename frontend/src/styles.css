@@ -233,6 +233,32 @@ header.hero p {
     0 6px 18px rgba(0, 0, 0, 0.18);
 }
 
+.staff-wrap {
+  background: #fbf7ef;
+  border: 1px solid #e4dccb;
+  border-radius: 10px;
+  padding: 12px 8px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 6px 18px rgba(0, 0, 0, 0.18);
+  overflow-x: auto;
+}
+
+.staff-osmd {
+  min-height: 120px;
+}
+
+.staff-osmd svg {
+  display: block;
+  margin: 0 auto;
+}
+
+.staff-loading {
+  text-align: center;
+  color: #8c8270;
+  font-size: 13px;
+  margin: 8px 0 0;
+}
+
 .tabs-switch {
   display: flex;
   gap: 8px;

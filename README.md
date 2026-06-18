@@ -1,6 +1,6 @@
 # 听歌扒谱 · song-to-tab
 
-上传一段音频，自动识别音符并生成 **吉他六线谱（TAB）**。支持选择扒谱引擎与扒谱程度。
+上传一段音频，自动识别音符并生成 **吉他六线谱（TAB）** 与 **五线谱**。支持选择扒谱引擎与扒谱程度。
 
 ![status](https://img.shields.io/badge/status-MVP-blue)
 
@@ -8,6 +8,7 @@
 
 - 🎵 **上传音频**（mp3 / wav / m4a / flac / ogg）并自动转写
 - 🎸 **吉他六线谱**输出（标准调弦 EADGBE，ASCII TAB + 可视化）
+- 🎼 **五线谱**输出（MusicXML，可导出 PNG / `.musicxml`，可导入 MuseScore、Finale 等）
 - ⚙️ **两种扒谱引擎**
   - **务实 (realistic)** — 基于 `librosa pYIN` 的单声部旋律识别，无重型依赖，稳定可用
   - **进阶 (advanced)** — 基于 Spotify `basic-pitch` 的多声部识别（可选安装）
@@ -25,6 +26,7 @@ song-to-tab/
 │   │   ├── transcribe.py   音频 → 音符（旋律/和弦/多声部）
 │   │   ├── separate.py     Demucs 音源分离（可选）
 │   │   ├── tab.py          音符 → 吉他六线谱 + ASCII TAB
+│   │   ├── staff.py        音符 → MusicXML 五线谱
 │   │   └── models.py       请求/响应数据结构
 │   └── requirements.txt
 └── frontend/           Vite + React + TS 前端

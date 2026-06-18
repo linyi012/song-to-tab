@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import tab, transcribe
 from . import separate as demucs_separate
+from . import staff
 from .models import Degree, Engine, Quantize, Separate, TranscriptionResult
 from .tab import TUNING_NAMES
 
@@ -94,6 +95,14 @@ async def transcribe_endpoint(
         chords = tab.chords_to_models(result.chords)
         ascii_tab = tab.render_ascii_tab(notes, result.tempo, chords)
         measures = tab.count_measures(notes, result.tempo, chords)
+        musicxml = staff.build_musicxml(
+            result.notes,
+            result.chords,
+            result.tempo,
+            quantize=quantize.value,
+            title=(file.filename or "Transcription").rsplit(".", 1)[0],
+            duration=result.duration,
+        )
 
         processed_b64 = None
         if result.processed_audio:
@@ -112,6 +121,7 @@ async def transcribe_endpoint(
             chords=chords,
             measures=measures,
             ascii_tab=ascii_tab,
+            musicxml=musicxml,
             warnings=result.warnings,
             filename=file.filename,
             processed_audio_base64=processed_b64,
