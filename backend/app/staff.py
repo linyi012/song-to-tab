@@ -19,14 +19,14 @@ NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"]
 
 CHORD_RE = re.compile(r"^([A-G])([#b]?)(m(in(or)?)?)?$", re.IGNORECASE)
 
-# TAB 谱表调弦：line 1 = 高音 e 弦 … line 6 = 低音 E 弦
+# TAB 谱表调弦：MusicXML line 自底向上编号，line 1 = 低音 E 弦 … line 6 = 高音 e 弦
 TAB_TUNING: List[Tuple[str, int]] = [
-    ("E", 4),
-    ("B", 3),
-    ("G", 3),
-    ("D", 3),
-    ("A", 2),
     ("E", 2),
+    ("A", 2),
+    ("D", 3),
+    ("G", 3),
+    ("B", 3),
+    ("E", 4),
 ]
 
 StaffMode = Literal["staff", "dual", "tab"]
@@ -159,12 +159,15 @@ def _append_note(
     staff: Optional[int] = None,
     with_tab: bool = False,
     tab_note: Optional[Note] = None,
+    tab_stem_none: bool = False,
 ) -> None:
     if staff is not None:
         _sub_element(note_el, "staff", str(staff))
     _sub_element(note_el, "voice", "1")
     _append_pitch(note_el, midi)
     _append_duration_type(note_el, divs)
+    if tab_stem_none:
+        _sub_element(note_el, "stem", "none")
     if with_tab and tab_note is not None:
         _append_tab_technical(note_el, tab_note)
 
@@ -186,11 +189,23 @@ def _append_harmony(parent: ET.Element, chord_name: str) -> None:
     _sub_element(harmony, "kind", kind)
 
 
-def _append_staff_tuning(attrs: ET.Element, staff_number: str) -> None:
+def _append_staff_tuning(details: ET.Element) -> None:
     for line, (step, octave) in enumerate(TAB_TUNING, start=1):
-        tuning = _sub_element(attrs, "staff-tuning", number=staff_number, line=str(line))
+        tuning = _sub_element(details, "staff-tuning", line=str(line))
         _sub_element(tuning, "tuning-step", step)
         _sub_element(tuning, "tuning-octave", str(octave))
+
+
+def _append_guitar_instrument(score_part: ET.Element, part_id: str = "P1") -> None:
+    inst_id = f"{part_id}-I1"
+    score_inst = _sub_element(score_part, "score-instrument", id=inst_id)
+    _sub_element(score_inst, "instrument-name", "Acoustic Guitar (steel)")
+    _sub_element(score_inst, "instrument-sound", "pluck.guitar")
+    midi_inst = _sub_element(score_part, "midi-instrument", id=inst_id)
+    _sub_element(midi_inst, "midi-channel", "1")
+    _sub_element(midi_inst, "midi-program", "26")
+    _sub_element(midi_inst, "volume", "80")
+    _sub_element(midi_inst, "pan", "0")
 
 
 def _append_staff_attributes(attrs: ET.Element) -> None:
@@ -204,9 +219,8 @@ def _append_tab_staff_attributes(attrs: ET.Element) -> None:
     _sub_element(clef, "sign", "TAB")
     _sub_element(clef, "line", "5")
     details = _sub_element(attrs, "staff-details")
-    _sub_element(details, "staff-type", "tab")
     _sub_element(details, "staff-lines", "6")
-    _append_staff_tuning(attrs, "1")
+    _append_staff_tuning(details)
 
 
 def _append_dual_staff_attributes(attrs: ET.Element) -> None:
@@ -218,9 +232,9 @@ def _append_dual_staff_attributes(attrs: ET.Element) -> None:
     _sub_element(clef2, "sign", "TAB")
     _sub_element(clef2, "line", "5")
     details = _sub_element(attrs, "staff-details", number="2")
-    _sub_element(details, "staff-type", "tab")
+    _sub_element(details, "staff-type", "alternate")
     _sub_element(details, "staff-lines", "6")
-    _append_staff_tuning(attrs, "2")
+    _append_staff_tuning(details)
 
 
 def _append_backup(elements: List[ET.Element], dur: int) -> None:
@@ -285,7 +299,15 @@ def _emit_note_pair(elements: List[ET.Element], note: Note, dur: int) -> None:
     _append_backup(elements, dur)
 
     staff2 = ET.Element("note")
-    _append_note(staff2, note.midi, dur, staff=2, with_tab=True, tab_note=note)
+    _append_note(
+        staff2,
+        note.midi,
+        dur,
+        staff=2,
+        with_tab=True,
+        tab_note=note,
+        tab_stem_none=True,
+    )
     elements.append(staff2)
 
 
@@ -315,7 +337,14 @@ def _emit_staff_rest(elements: List[ET.Element], dur: int) -> None:
 
 def _emit_tab_note(elements: List[ET.Element], note: Note, dur: int) -> None:
     note_el = ET.Element("note")
-    _append_note(note_el, note.midi, dur, with_tab=True, tab_note=note)
+    _append_note(
+        note_el,
+        note.midi,
+        dur,
+        with_tab=True,
+        tab_note=note,
+        tab_stem_none=True,
+    )
     elements.append(note_el)
 
 
@@ -440,6 +469,8 @@ def _build_musicxml(
         "staff": "Melody",
     }[mode]
     _sub_element(score_part, "part-name", part_name)
+    if mode in ("tab", "dual"):
+        _append_guitar_instrument(score_part)
 
     part = _sub_element(score, "part", id="P1")
 

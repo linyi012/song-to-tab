@@ -675,6 +675,14 @@ export default function App() {
             </button>
           </div>
 
+          {((view === "svg" && result.tab_musicxml) ||
+            (view === "dual" && result.dual_musicxml)) && (
+            <p className="section-desc">
+              MusicXML 建议使用 MuseScore 4.x 打开。双谱表若在 MuseScore
+              中五线谱与六线谱未联动，可在乐器面板从 TAB 谱表创建联动五线谱。
+            </p>
+          )}
+
           {!hasTabContent ? (
             <div className="warn">没有可显示的谱面内容。</div>
           ) : (
