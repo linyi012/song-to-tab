@@ -76,7 +76,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [advancedOk, setAdvancedOk] = useState<boolean | null>(null);
   const [separateOk, setSeparateOk] = useState<boolean | null>(null);
-  const [view, setView] = useState<"svg" | "staff" | "ascii">("svg");
+  const [view, setView] = useState<"svg" | "staff" | "dual" | "ascii">("svg");
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackSpeed, setPlaybackSpeed] = useState<PlaybackSpeed>(1);
@@ -86,6 +86,7 @@ export default function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const tabRef = useRef<TabViewHandle>(null);
   const staffRef = useRef<StaffViewHandle>(null);
+  const dualRef = useRef<StaffViewHandle>(null);
   const playerRef = useRef<TabPlayer | null>(null);
   const rafRef = useRef<number>(0);
 
@@ -316,12 +317,26 @@ export default function App() {
       staffRef.current?.exportPng(result?.filename);
       return;
     }
+    if (view === "dual") {
+      dualRef.current?.exportPng(result?.filename);
+      return;
+    }
     tabRef.current?.exportPng(result?.filename);
   };
 
-  const exportMusicXml = () => {
-    if (!result?.musicxml) return;
-    downloadMusicXml(result.musicxml, result.filename);
+  const exportStaffMusicXml = () => {
+    if (!result?.staff_musicxml) return;
+    downloadMusicXml(result.staff_musicxml, result.filename, "staff");
+  };
+
+  const exportTabMusicXml = () => {
+    if (!result?.tab_musicxml) return;
+    downloadMusicXml(result.tab_musicxml, result.filename, "tab");
+  };
+
+  const exportDualMusicXml = () => {
+    if (!result?.dual_musicxml) return;
+    downloadMusicXml(result.dual_musicxml, result.filename, "dual");
   };
 
   return (
@@ -585,20 +600,37 @@ export default function App() {
               五线谱
             </button>
             <button
+              className={view === "dual" ? "active" : ""}
+              onClick={() => setView("dual")}
+            >
+              双谱表
+            </button>
+            <button
               className={view === "ascii" ? "active" : ""}
               onClick={() => setView("ascii")}
             >
               ASCII 六线谱
             </button>
             <div style={{ flex: 1 }} />
-            {(view === "svg" || view === "staff") && hasTabContent && (
+            {(view === "svg" || view === "staff" || view === "dual") &&
+              hasTabContent && (
               <button className="btn ghost" onClick={exportPng}>
                 导出 PNG
               </button>
             )}
-            {view === "staff" && result.musicxml && (
-              <button className="btn ghost" onClick={exportMusicXml}>
-                下载 MusicXML
+            {view === "svg" && result.tab_musicxml && (
+              <button className="btn ghost" onClick={exportTabMusicXml}>
+                下载 TAB
+              </button>
+            )}
+            {view === "staff" && result.staff_musicxml && (
+              <button className="btn ghost" onClick={exportStaffMusicXml}>
+                下载五线谱
+              </button>
+            )}
+            {view === "dual" && result.dual_musicxml && (
+              <button className="btn ghost" onClick={exportDualMusicXml}>
+                下载双谱表
               </button>
             )}
             <button className="btn ghost" onClick={copyTab}>
@@ -744,12 +776,24 @@ export default function App() {
               ) : view === "staff" ? (
                 <StaffView
                   ref={staffRef}
-                  musicxml={result.musicxml}
+                  musicxml={result.staff_musicxml}
                   notes={result.notes}
                   tempo={result.tempo}
                   duration={result.duration}
                   currentTime={currentTime}
                   filename={result.filename}
+                />
+              ) : view === "dual" ? (
+                <StaffView
+                  ref={dualRef}
+                  musicxml={result.dual_musicxml}
+                  notes={result.notes}
+                  tempo={result.tempo}
+                  duration={result.duration}
+                  currentTime={currentTime}
+                  filename={result.filename}
+                  label="双谱表"
+                  loadingLabel="正在渲染双谱表…"
                 />
               ) : (
                 <pre className="tab-ascii">{result.ascii_tab}</pre>

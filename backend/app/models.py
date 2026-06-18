@@ -70,7 +70,9 @@ class TranscriptionResult(BaseModel):
     chords: List[Chord]
     measures: int
     ascii_tab: str
-    musicxml: str = Field("", description="MusicXML 4.0 五线谱")
+    staff_musicxml: str = Field("", description="MusicXML 4.0 单声部五线谱")
+    tab_musicxml: str = Field("", description="MusicXML 4.0 纯 TAB 六线谱")
+    dual_musicxml: str = Field("", description="MusicXML 4.0 双谱表（五线谱 + TAB）")
     warnings: List[str] = []
     filename: Optional[str] = None
     processed_audio_base64: Optional[str] = Field(

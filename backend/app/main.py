@@ -95,14 +95,16 @@ async def transcribe_endpoint(
         chords = tab.chords_to_models(result.chords)
         ascii_tab = tab.render_ascii_tab(notes, result.tempo, chords)
         measures = tab.count_measures(notes, result.tempo, chords)
-        musicxml = staff.build_musicxml(
-            result.notes,
-            result.chords,
-            result.tempo,
+        title = (file.filename or "Transcription").rsplit(".", 1)[0]
+        xml_kw = dict(
+            tempo=result.tempo,
             quantize=quantize.value,
-            title=(file.filename or "Transcription").rsplit(".", 1)[0],
+            title=title,
             duration=result.duration,
         )
+        staff_musicxml = staff.build_staff_musicxml(notes, result.chords, **xml_kw)
+        tab_musicxml = staff.build_tab_musicxml(notes, result.chords, **xml_kw)
+        dual_musicxml = staff.build_dual_musicxml(notes, result.chords, **xml_kw)
 
         processed_b64 = None
         if result.processed_audio:
@@ -121,7 +123,9 @@ async def transcribe_endpoint(
             chords=chords,
             measures=measures,
             ascii_tab=ascii_tab,
-            musicxml=musicxml,
+            staff_musicxml=staff_musicxml,
+            tab_musicxml=tab_musicxml,
+            dual_musicxml=dual_musicxml,
             warnings=result.warnings,
             filename=file.filename,
             processed_audio_base64=processed_b64,

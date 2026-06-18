@@ -15,6 +15,8 @@ interface Props {
   duration: number;
   currentTime?: number;
   filename?: string;
+  label?: string;
+  loadingLabel?: string;
 }
 
 export interface StaffViewHandle {
@@ -62,7 +64,15 @@ function syncCursor(
 }
 
 const StaffView = forwardRef<StaffViewHandle, Props>(function StaffView(
-  { musicxml, notes, tempo, currentTime = 0, filename },
+  {
+    musicxml,
+    notes,
+    tempo,
+    currentTime = 0,
+    filename,
+    label = "五线谱",
+    loadingLabel = "正在渲染五线谱…",
+  },
   ref
 ) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -113,7 +123,7 @@ const StaffView = forwardRef<StaffViewHandle, Props>(function StaffView(
       })
       .catch((err: unknown) => {
         if (cancelled) return;
-        setLoadError(err instanceof Error ? err.message : "五线谱加载失败");
+        setLoadError(err instanceof Error ? err.message : `${label}加载失败`);
       });
 
     return () => {
@@ -178,7 +188,7 @@ const StaffView = forwardRef<StaffViewHandle, Props>(function StaffView(
   }));
 
   if (!musicxml) {
-    return <div className="warn">无五线谱内容。</div>;
+    return <div className="warn">无{label}内容。</div>;
   }
 
   return (
@@ -189,12 +199,12 @@ const StaffView = forwardRef<StaffViewHandle, Props>(function StaffView(
         className="staff-osmd"
         aria-label={
           filename
-            ? `${filename.replace(/\.[^.]+$/, "")} 五线谱`
-            : "五线谱"
+            ? `${filename.replace(/\.[^.]+$/, "")} ${label}`
+            : label
         }
       />
       {!ready && !loadError && (
-        <p className="staff-loading">正在渲染五线谱…</p>
+        <p className="staff-loading">{loadingLabel}</p>
       )}
     </div>
   );
