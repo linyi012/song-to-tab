@@ -2,6 +2,8 @@ name: song-to-tab
 
 services:
   backend:
+    profiles:
+      - basic
     build:
       context: ./backend
       args:
@@ -22,14 +24,14 @@ services:
     expose:
       - "8000"
     restart: unless-stopped
+    privileged: true
+    shm_size: "2gb"
     volumes:
       - model-cache:/root/.cache
-    networks:
-      default:
-        aliases:
-          - backend
 
   frontend:
+    profiles:
+      - basic
     build: ./frontend
     ports:
       - "${HOST_PORT:-60901}:80"
@@ -41,7 +43,9 @@ services:
   frontend-full:
     profiles:
       - full
-    build: ./frontend
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.full
     ports:
       - "${HOST_PORT:-60901}:80"
     depends_on:

@@ -86,8 +86,10 @@ Windows 一键开发（含 Demucs 可选安装）：
 
 | 命令 | 包含功能 | 镜像体积 | 适用场景 |
 |------|----------|----------|----------|
-| `docker compose up` | 务实引擎（librosa） | 较小 | 日常扒谱、旋律识别 |
-| `docker compose --profile full up` | + Demucs 人声分离 + basic-pitch 进阶引擎 | 约 2GB+ | 需要分离人声或进阶多声部识别 |
+| `docker compose --env-file .env.example up` | 务实引擎（librosa） | 较小 | 日常扒谱、旋律识别 |
+| `docker compose --env-file .env.full.example up` | + Demucs 人声分离 + basic-pitch 进阶引擎 | 约 2GB+ | 需要分离人声或进阶多声部识别 |
+
+基础版与完整版通过 **Compose profile 互斥**：同一时刻只会启动一对前后端容器，不会同时占用端口或混用后端。
 
 ### 第一步：安装 Docker
 
@@ -110,47 +112,40 @@ cd song-to-tab
 
 若已在本地有代码，直接进入项目根目录（包含 `docker-compose.yml` 的目录）即可。
 
-### 第三步：配置端口（可选）
+### 第三步：配置环境
 
-默认访问地址为 **http://localhost:60901**。若要修改对外端口：
+项目提供两份示例配置，**所有平台命令相同**（无需区分 bash / PowerShell）：
 
-```bash
-# Linux / macOS
-cp .env.example .env
+| 文件 | 用途 |
+|------|------|
+| [`.env.example`](.env.example) | 基础版（`COMPOSE_PROFILES=basic`） |
+| [`.env.full.example`](.env.full.example) | 完整版（`COMPOSE_PROFILES=full`） |
 
-# Windows PowerShell
-Copy-Item .env.example .env
-```
+可复制为 `.env` 后编辑端口，也可启动时直接用 `--env-file` 引用示例文件（见第四步）。
 
-编辑 `.env`：
-
-```dotenv
-HOST_PORT=60901
-```
+默认访问地址为 **http://localhost:60901**。若要修改对外端口，编辑对应文件中的 `HOST_PORT`。
 
 改端口后，若容器已在运行，需先停止再启动（见下方「停止服务」）。
 
-也可**不创建 `.env`**，启动时临时指定：
-
-```bash
-# Linux / macOS
-HOST_PORT=9000 docker compose up -d --build
-
-# Windows PowerShell
-$env:HOST_PORT=9000; docker compose up -d --build
-```
-
 ### 第四步：构建并启动
 
-在项目根目录执行：
+在项目根目录执行（**Windows / macOS / Linux 相同**）：
 
 ```bash
 # 基础版（推荐首次尝试）
-docker compose up -d --build
+docker compose --env-file .env.example up -d --build
 
-# 完整版（首次构建较慢，需下载 PyTorch 等大依赖）
-docker compose --profile full up -d --build
+# 完整版（Demucs + basic-pitch；首次构建较慢）
+docker compose --env-file .env.full.example up -d --build
 ```
+
+若已复制 `.env.example` 为 `.env` 并改过配置，基础版也可简写为：
+
+```bash
+docker compose up -d --build
+```
+
+说明：通过 `--env-file` 指定 `COMPOSE_PROFILES`，基础版与完整版**不会同时启动**，避免端口冲突或连错后端。
 
 说明：
 
@@ -162,10 +157,11 @@ docker compose --profile full up -d --build
 查看构建/启动进度：
 
 ```bash
-docker compose ps
-docker compose logs -f
+docker compose --env-file .env.example ps
+docker compose --env-file .env.example logs -f
+
 # 完整版查看后端日志：
-docker compose --profile full logs -f backend-full
+docker compose --env-file .env.full.example logs -f backend-full
 ```
 
 ### 第五步：验证服务
@@ -194,26 +190,37 @@ curl http://localhost:60901/api/
 
 浏览器访问 **http://localhost:60901**（或你配置的端口），上传一段音频测试扒谱。
 
+完整版额外确认：应只有 2 个容器在运行（`frontend-full`、`backend-full`）：
+
+```bash
+docker compose --env-file .env.full.example ps
+curl -s http://localhost:60901/api/
+```
+
+返回 JSON 中 `advanced_available` 与 `separate_available` 均应为 `true`。
+
 ### 第六步：日常使用
 
 | 操作 | 命令 |
 |------|------|
-| 查看运行状态 | `docker compose ps` |
-| 查看日志 | `docker compose logs -f` |
-| 只看后端日志 | `docker compose logs -f backend` |
-| 代码更新后重建 | `docker compose up -d --build` |
-| 停止服务 | `docker compose down` |
-| 停止完整版 | `docker compose --profile full down` |
-| 停止并删除模型缓存 | `docker compose down -v` |
+| 查看运行状态 | `docker compose --env-file .env.example ps`（或 `.env.full.example`） |
+| 查看日志 | `docker compose --env-file .env.example logs -f` |
+| 只看后端日志 | `docker compose --env-file .env.example logs -f backend` |
+| 代码更新后重建 | `docker compose --env-file .env.example up -d --build` |
+| 停止基础版 | `docker compose --env-file .env.example down` |
+| 停止完整版 | `docker compose --env-file .env.full.example down` |
+| 停止并删除模型缓存 | 在上述 `down` 命令后加 `-v` |
 
-修改 `.env` 中的 `HOST_PORT` 后：
+修改端口后，先 `down` 再 `up`：
 
 ```bash
-docker compose down
-docker compose up -d
+docker compose --env-file .env.example down
+docker compose --env-file .env.example up -d
 ```
 
 ### 架构说明
+
+**基础版（profile: basic）**
 
 ```
 浏览器 → 宿主机:HOST_PORT → frontend (Nginx)
@@ -221,20 +228,28 @@ docker compose up -d
                               └─ /api/*   → backend:8000 (FastAPI，仅容器内网)
 ```
 
+**完整版（profile: full）**
+
+```
+浏览器 → 宿主机:HOST_PORT → frontend-full (Nginx)
+                              ├─ /        → 静态页面 (React)
+                              └─ /api/*   → backend-full:8000 (privileged + torch/demucs/basic-pitch)
+```
+
 - 后端 **8000 端口不对外暴露**，只能通过 Nginx 的 `/api` 访问
 - 前端代码中 `API_BASE = "/api"` 无需修改
-- 完整版中 `backend-full` 在 Docker 网络内别名仍为 `backend`，Nginx 配置通用
+- 完整版 `backend-full` 使用 `privileged: true` 与更大 `shm_size`，便于 PyTorch/Demucs 在容器内运行
 
 ### 常见问题
 
 | 现象 | 可能原因 | 处理 |
 |------|----------|------|
-| `port is already allocated` | `HOST_PORT` 被占用 | 修改 `.env` 中的 `HOST_PORT`，或关闭占用该端口的程序 |
-| 页面能开但上传失败 | 后端未就绪或构建失败 | `docker compose logs backend` 查看报错 |
-| 完整版无 Demucs / 进阶引擎 | 用了基础版命令启动 | 改用 `docker compose --profile full up -d --build` |
+| `port is already allocated` | `HOST_PORT` 被占用，或基础版与完整版容器同时运行 | 修改 env 文件中的 `HOST_PORT`；`docker compose ps` 确认只有一对 frontend；切换版本时先 `down` 再换 `--env-file` |
+| 页面能开但上传失败 | 后端未就绪或构建失败 | 基础版：`docker compose --env-file .env.example logs backend`；完整版：`docker compose --env-file .env.full.example logs backend-full` |
+| 完整版无 Demucs / 进阶引擎 | 用了基础版 env，或 optional 依赖未装上 | 确认使用 `--env-file .env.full.example`；`curl http://localhost:60901/api/` 中两项应为 `true` |
 | 首次分离很慢 | Demucs 下载模型 + CPU 推理 | 正常现象，后续会使用 `model-cache` 卷中的缓存 |
-| 改代码后页面无变化 | 未重建镜像 | `docker compose up -d --build` |
-| Windows 下 `cp` 报错 | PowerShell 无 `cp` | 使用 `Copy-Item .env.example .env` |
+| 改代码后页面无变化 | 未重建镜像 | 对应用 `--env-file` 执行 `up -d --build` |
+| Windows 下 `cp` 报错 | PowerShell 无 `cp` | 使用 `Copy-Item .env.example .env`（仅复制配置时需要） |
 
 ### 限制
 
