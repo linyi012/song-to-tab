@@ -8,3 +8,7 @@ soundfile==0.12.1
 audioread==3.0.1
 # Optional (进阶/advanced polyphonic engine). Install separately if needed:
 #   pip install "basic-pitch[onnx]"
+# Optional (Demucs 人声分离). Install in this order — see README「Demucs 安装与排错」:
+#   pip install torch==2.4.1 torchaudio==2.4.1 --index-url https://download.pytorch.org/whl/cpu
+#   pip install demucs
+# Windows: .\dev.ps1 -InstallDemucs

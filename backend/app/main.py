@@ -1,6 +1,7 @@
 """FastAPI 入口：上传音频 -> 转写 -> 吉他六线谱。"""
 from __future__ import annotations
 
+import base64
 import os
 import tempfile
 import traceback
@@ -9,7 +10,9 @@ from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import tab, transcribe
-from .models import Degree, Engine, Quantize, TranscriptionResult
+from . import separate as demucs_separate
+from . import staff
+from .models import ChordComplexity, Degree, Engine, Quantize, Separate, TranscriptionResult
 from .tab import TUNING_NAMES
 
 
@@ -20,6 +23,10 @@ def _advanced_available() -> bool:
         return True
     except Exception:
         return False
+
+
+def _separate_available() -> bool:
+    return demucs_separate.separate_available()
 
 app = FastAPI(title="song-to-tab", version="0.1.0")
 
@@ -40,8 +47,11 @@ def root():
         "name": "song-to-tab",
         "engines": [e.value for e in Engine],
         "degrees": [d.value for d in Degree],
+        "chord_complexities": [c.value for c in ChordComplexity],
         "quantize": [q.value for q in Quantize],
+        "separate": [s.value for s in Separate],
         "advanced_available": _advanced_available(),
+        "separate_available": _separate_available(),
     }
 
 
@@ -55,7 +65,9 @@ async def transcribe_endpoint(
     file: UploadFile = File(...),
     engine: Engine = Form(Engine.realistic),
     degree: Degree = Form(Degree.simple),
+    chord_complexity: ChordComplexity = Form(ChordComplexity.standard),
     quantize: Quantize = Form(Quantize.none),
+    separate: Separate = Form(Separate.none),
 ):
     ext = os.path.splitext(file.filename or "")[1].lower()
     if ext not in ALLOWED_EXT:
@@ -78,17 +90,41 @@ async def transcribe_endpoint(
             engine=engine.value,
             degree=degree.value,
             quantize=quantize.value,
+            separate_mode=separate.value,
+            chord_complexity=chord_complexity.value,
         )
 
         notes = tab.assign_positions(result.notes)
         chords = tab.chords_to_models(result.chords)
         ascii_tab = tab.render_ascii_tab(notes, result.tempo, chords)
-        measures = tab.count_measures(notes, result.tempo)
+        measures = tab.count_measures(notes, result.tempo, chords)
+        title = (file.filename or "Transcription").rsplit(".", 1)[0]
+        xml_kw = dict(
+            tempo=result.tempo,
+            quantize=quantize.value,
+            title=title,
+            duration=result.duration,
+        )
+        staff_musicxml = staff.build_staff_musicxml(notes, result.chords, **xml_kw)
+        tab_musicxml = staff.build_tab_musicxml(notes, result.chords, **xml_kw)
+        dual_musicxml = staff.build_dual_musicxml(notes, result.chords, **xml_kw)
+        ascii_tab_chords = (
+            tab.render_ascii_tab([], result.tempo, chords) if chords else ""
+        )
+        tab_musicxml_chords = (
+            staff.build_chords_tab_musicxml(result.chords, **xml_kw) if chords else ""
+        )
+
+        processed_b64 = None
+        if result.processed_audio:
+            processed_b64 = base64.b64encode(result.processed_audio).decode("ascii")
 
         return TranscriptionResult(
             engine=engine,
             degree=degree,
+            chord_complexity=chord_complexity,
             quantize=quantize,
+            separate=separate,
             tempo=result.tempo,
             duration=round(result.duration, 2),
             sample_rate=result.sample_rate,
@@ -97,8 +133,14 @@ async def transcribe_endpoint(
             chords=chords,
             measures=measures,
             ascii_tab=ascii_tab,
+            ascii_tab_chords=ascii_tab_chords,
+            staff_musicxml=staff_musicxml,
+            tab_musicxml=tab_musicxml,
+            tab_musicxml_chords=tab_musicxml_chords,
+            dual_musicxml=dual_musicxml,
             warnings=result.warnings,
             filename=file.filename,
+            processed_audio_base64=processed_b64,
         )
     except HTTPException:
         raise

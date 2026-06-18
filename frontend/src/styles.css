@@ -58,6 +58,10 @@ header.hero p {
   box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
 }
 
+.panel-locked {
+  opacity: 0.72;
+}
+
 .dropzone {
   border: 2px dashed var(--border);
   border-radius: 12px;
@@ -69,6 +73,11 @@ header.hero p {
 .dropzone.drag {
   border-color: var(--accent);
   background: rgba(255, 122, 69, 0.06);
+}
+.dropzone.disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 .dropzone .big {
   font-size: 17px;
@@ -216,10 +225,38 @@ header.hero p {
 
 .tab-svg-wrap {
   overflow-x: auto;
-  background: #0b0e13;
-  border: 1px solid var(--border);
+  background: #fbf7ef;
+  border: 1px solid #e4dccb;
   border-radius: 10px;
-  padding: 12px 0;
+  padding: 8px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 6px 18px rgba(0, 0, 0, 0.18);
+}
+
+.staff-wrap {
+  background: #fbf7ef;
+  border: 1px solid #e4dccb;
+  border-radius: 10px;
+  padding: 12px 8px;
+  box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03),
+    0 6px 18px rgba(0, 0, 0, 0.18);
+  overflow-x: auto;
+}
+
+.staff-osmd {
+  min-height: 120px;
+}
+
+.staff-osmd svg {
+  display: block;
+  margin: 0 auto;
+}
+
+.staff-loading {
+  text-align: center;
+  color: #8c8270;
+  font-size: 13px;
+  margin: 8px 0 0;
 }
 
 .tabs-switch {
@@ -263,4 +300,185 @@ footer {
   color: var(--muted);
   font-size: 12px;
   margin-top: 40px;
+}
+
+.transport {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.transport-btn {
+  width: 36px;
+  height: 36px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  padding: 0;
+}
+
+.transport-icon {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  display: block;
+}
+
+.transport-btn:hover {
+  border-color: var(--accent-2);
+}
+
+.transport-btn.play {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #1a1208;
+  border: none;
+}
+
+.transport-btn.play .transport-icon {
+  fill: #1a1208;
+}
+
+.transport-btn.play.playing {
+  background: var(--panel);
+  color: var(--text);
+  border: 1px solid var(--accent);
+}
+
+.transport-btn.play.playing .transport-icon {
+  fill: var(--text);
+}
+
+.transport-seek {
+  flex: 1;
+  min-width: 80px;
+  height: 6px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.transport-time {
+  font-size: 12px;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  min-width: 72px;
+  text-align: right;
+}
+
+.transport-speed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.transport-speed-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.transport-speed select {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 6px;
+  padding: 4px 8px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.transport-speed select:hover {
+  border-color: var(--accent-2);
+}
+
+.transport-instrument {
+  font-size: 11px;
+  color: var(--accent-2);
+  background: rgba(255, 122, 69, 0.12);
+  border: 1px solid rgba(255, 122, 69, 0.35);
+  border-radius: 999px;
+  padding: 3px 10px;
+  flex-shrink: 0;
+}
+
+.transport-hint {
+  margin: -4px 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.section-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+
+.section-desc {
+  margin: -6px 0 16px;
+  font-size: 13px;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.preview-section-title {
+  margin-top: 4px;
+}
+
+.audio-source-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+
+.audio-source-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.audio-source-toggle button {
+  background: var(--panel-2);
+  border: 1px solid var(--border);
+  color: var(--muted);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 13px;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+
+.audio-source-toggle button:hover {
+  border-color: var(--accent);
+  color: var(--text);
+}
+
+.audio-source-toggle button.active {
+  background: rgba(255, 122, 69, 0.12);
+  border-color: rgba(255, 122, 69, 0.45);
+  color: var(--accent-2);
+}
+
+.source-audio-label {
+  font-size: 12px;
+  color: var(--muted);
+  margin-bottom: 8px;
+}
+
+.source-audio-transport {
+  margin-bottom: 0;
 }

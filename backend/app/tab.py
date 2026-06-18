@@ -98,13 +98,17 @@ def render_ascii_tab(
     """把音符按时间网格排成六线谱字符串。
 
     顶行为 1 弦(高音 e)，底行为 6 弦(低音 E)，符合常规阅读习惯。
+    仅和弦模式（notes 为空、chords 非空）时输出空六线谱 + 和弦名行。
     """
-    if not notes:
+    if not notes and not chords:
         return "（无音符）"
 
     beat = 60.0 / max(tempo, 1.0)
     col_dur = beat / cols_per_beat
-    end_time = max(n.end for n in notes)
+    if notes:
+        end_time = max(n.end for n in notes)
+    else:
+        end_time = max(c.end for c in chords or [])
     total_cols = max(1, int(round(end_time / col_dur)) + 1)
     cols_per_measure = beats_per_measure * cols_per_beat
 
@@ -127,6 +131,7 @@ def render_ascii_tab(
             col = min(max(int(round(ch.start / col_dur)), 0), total_cols - 1)
             if not chord_row[col]:
                 chord_row[col] = ch.name
+                width[col] = max(width[col], len(ch.name))
 
     # 组装：按行 -> 按小节分行块
     string_labels = ["e", "B", "G", "D", "A", "E"]  # 顶→底
@@ -164,9 +169,17 @@ def render_ascii_tab(
     return header + "\n\n" + "\n".join(lines).rstrip()
 
 
-def count_measures(notes: List[Note], tempo: float, beats_per_measure: int = 4) -> int:
-    if not notes:
+def count_measures(
+    notes: List[Note],
+    tempo: float,
+    chords: Optional[List[Chord]] = None,
+    beats_per_measure: int = 4,
+) -> int:
+    if not notes and not chords:
         return 0
     beat = 60.0 / max(tempo, 1.0)
-    end_time = max(n.end for n in notes)
+    if notes:
+        end_time = max(n.end for n in notes)
+    else:
+        end_time = max(c.end for c in chords or [])
     return max(1, int(end_time / (beat * beats_per_measure)) + 1)

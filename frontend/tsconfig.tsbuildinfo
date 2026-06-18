@@ -1,0 +1,1 @@
+{"root":["./src/app.tsx","./src/sourceaudioplayer.tsx","./src/staffview.tsx","./src/tabview.tsx","./src/transporticons.tsx","./src/api.ts","./src/chordvoicings.ts","./src/instruments.ts","./src/main.tsx","./src/player.ts","./src/staffexport.ts"],"errors":true,"version":"5.9.3"}
