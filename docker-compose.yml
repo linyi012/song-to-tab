@@ -1,0 +1,53 @@
+name: song-to-tab
+
+services:
+  backend:
+    build:
+      context: ./backend
+      args:
+        INSTALL_OPTIONAL: "false"
+    expose:
+      - "8000"
+    restart: unless-stopped
+    volumes:
+      - model-cache:/root/.cache
+
+  backend-full:
+    profiles:
+      - full
+    build:
+      context: ./backend
+      args:
+        INSTALL_OPTIONAL: "true"
+    expose:
+      - "8000"
+    restart: unless-stopped
+    volumes:
+      - model-cache:/root/.cache
+    networks:
+      default:
+        aliases:
+          - backend
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "${HOST_PORT:-60901}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+  frontend-full:
+    profiles:
+      - full
+    build: ./frontend
+    ports:
+      - "${HOST_PORT:-60901}:80"
+    depends_on:
+      backend-full:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  model-cache:

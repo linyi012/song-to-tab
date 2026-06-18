@@ -15,6 +15,9 @@ dist/
 backend/uploads/
 *.tmp
 
+# Docker / env
+.env
+
 # Editor / OS
 .DS_Store
 .idea/
