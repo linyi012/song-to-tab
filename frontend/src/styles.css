@@ -198,6 +198,78 @@ header.hero p {
   border-radius: 10px;
 }
 
+.backend-banner {
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  margin-bottom: 12px;
+}
+.backend-checking {
+  background: rgba(139, 148, 158, 0.12);
+  border: 1px solid var(--border);
+  color: var(--muted);
+}
+.backend-offline {
+  background: rgba(248, 81, 73, 0.12);
+  border: 1px solid #f85149;
+  color: #ff9b94;
+}
+
+.panel-busy {
+  border-color: var(--accent);
+}
+
+.busy-status-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.busy-status-head strong {
+  font-size: 15px;
+}
+.busy-status-sub,
+.busy-status-elapsed,
+.busy-status-hint {
+  font-size: 13px;
+  color: var(--muted);
+  margin: 0 0 6px;
+}
+.busy-status-hint {
+  color: var(--accent-2);
+}
+.backend-online-hint {
+  font-size: 12px;
+  color: #3fb950;
+  font-weight: 600;
+}
+
+.progress-indeterminate {
+  margin-top: 12px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--panel-2);
+  overflow: hidden;
+  position: relative;
+}
+.progress-indeterminate::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: var(--accent);
+  border-radius: 2px;
+  animation: progress-slide 1.4s ease-in-out infinite;
+}
+@keyframes progress-slide {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(350%);
+  }
+}
+
 .meta {
   display: flex;
   gap: 22px;

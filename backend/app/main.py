@@ -1,6 +1,7 @@
 """FastAPI 入口：上传音频 -> 转写 -> 吉他六线谱。"""
 from __future__ import annotations
 
+import asyncio
 import base64
 import os
 import tempfile
@@ -103,8 +104,10 @@ async def separate_endpoint(
             tmp.write(data)
             tmp_path = tmp.name
 
-        separated_path, sep_warn = demucs_separate.run_separation(
-            tmp_path, separate.value
+        separated_path, sep_warn = await asyncio.to_thread(
+            demucs_separate.run_separation,
+            tmp_path,
+            separate.value,
         )
         if sep_warn:
             warnings.append(sep_warn)
@@ -157,7 +160,8 @@ async def transcribe_endpoint(
             tmp.write(data)
             tmp_path = tmp.name
 
-        result = transcribe.transcribe(
+        result = await asyncio.to_thread(
+            transcribe.transcribe,
             tmp_path,
             engine=engine.value,
             degree=degree.value,

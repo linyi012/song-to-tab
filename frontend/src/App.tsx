@@ -4,6 +4,7 @@ import {
   separateAudio,
   separationResultToFile,
   transcribe,
+  type CapabilityStatus,
   type ChordComplexity,
   type Degree,
   type Engine,
@@ -12,6 +13,7 @@ import {
   type SeparationResult,
   type TranscriptionResult,
 } from "./api";
+import { useBackendStatus } from "./useBackendStatus";
 import { TabPlayer, PLAYBACK_SPEEDS, type PlaybackSpeed, type PreviewMode } from "./player";
 import TabView, { type TabViewHandle } from "./TabView";
 import StaffView, { type StaffViewHandle } from "./StaffView";
@@ -98,6 +100,73 @@ function defaultPreviewMode(result: TranscriptionResult): PreviewMode {
   return "melody";
 }
 
+function capabilityBadgeLabel(status: CapabilityStatus): string {
+  switch (status) {
+    case "loading":
+      return "检测中";
+    case "available":
+      return "可用";
+    case "unavailable":
+      return "未安装";
+    case "unreachable":
+      return "后端离线";
+  }
+}
+
+function capabilityBadgeOn(status: CapabilityStatus): boolean {
+  return status === "available";
+}
+
+interface BusyStageInfo {
+  title: string;
+  subtitle: string;
+}
+
+function getBusyStage(
+  separating: boolean,
+  loading: boolean,
+  separate: Separate,
+  engine: Engine
+): BusyStageInfo {
+  if (separating) {
+    return {
+      title: "正在做人声分离…",
+      subtitle: "Demucs 首次运行需下载模型，可能需要数分钟",
+    };
+  }
+  if (loading && separate !== "none") {
+    return {
+      title: "分离并扒谱中…",
+      subtitle: "会先分离再转写，总耗时较长",
+    };
+  }
+  if (loading && engine === "advanced") {
+    return {
+      title: "进阶引擎扒谱中…",
+      subtitle: "首次加载 basic-pitch 模型较慢",
+    };
+  }
+  return {
+    title: "正在扒谱…",
+    subtitle: "音频越长耗时越久，属正常现象",
+  };
+}
+
+function getBusyReassurance(elapsedSec: number): string | null {
+  if (elapsedSec < 30) return null;
+  if (elapsedSec < 180) return "仍在处理中，后端正常响应，请耐心等待。";
+  if (elapsedSec < 600) {
+    return "已处理较长时间。Demucs / 长音频可能需 5–15 分钟，可继续等待或点取消。";
+  }
+  return "已超 10 分钟。若确认音频不长，可取消后检查 NAS 容器内存/日志。";
+}
+
+function formatBusyElapsed(elapsedSec: number): string {
+  const m = Math.floor(elapsedSec / 60);
+  const s = elapsedSec % 60;
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
 export default function App() {
   const [file, setFile] = useState<File | null>(null);
   const [drag, setDrag] = useState(false);
@@ -117,8 +186,10 @@ export default function App() {
   const [useSeparatedForTranscribe, setUseSeparatedForTranscribe] =
     useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [advancedOk, setAdvancedOk] = useState<boolean | null>(null);
-  const [separateOk, setSeparateOk] = useState<boolean | null>(null);
+  const [advancedOk, setAdvancedOk] = useState<CapabilityStatus>("loading");
+  const [separateOk, setSeparateOk] = useState<CapabilityStatus>("loading");
+  const [busyStartedAt, setBusyStartedAt] = useState<number | null>(null);
+  const [busyElapsedSec, setBusyElapsedSec] = useState(0);
   const [view, setView] = useState<"svg" | "staff" | "dual" | "ascii">("svg");
   const [currentTime, setCurrentTime] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -133,13 +204,68 @@ export default function App() {
   const dualRef = useRef<StaffViewHandle>(null);
   const playerRef = useRef<TabPlayer | null>(null);
   const rafRef = useRef<number>(0);
+  const abortRef = useRef<AbortController | null>(null);
 
-  useEffect(() => {
+  const refreshCapabilities = useCallback(() => {
     checkCapabilities().then((caps) => {
       setAdvancedOk(caps.advanced);
       setSeparateOk(caps.separate);
     });
   }, []);
+
+  useEffect(() => {
+    refreshCapabilities();
+  }, [refreshCapabilities]);
+
+  const busy = loading || separating;
+
+  const handleBackendAbort = useCallback(() => {
+    abortRef.current?.abort(new DOMException("backend", "AbortError"));
+    setError("后端服务已断开，操作已中止");
+    setLoading(false);
+    setSeparating(false);
+  }, []);
+
+  const { status: backendStatus, healthOk } = useBackendStatus(
+    busy,
+    busyStartedAt,
+    handleBackendAbort,
+    refreshCapabilities
+  );
+
+  const backendOffline = backendStatus === "offline";
+
+  useEffect(() => {
+    if (!busy) {
+      setBusyStartedAt(null);
+      setBusyElapsedSec(0);
+      return;
+    }
+    const started = Date.now();
+    setBusyStartedAt(started);
+    setBusyElapsedSec(0);
+    const id = setInterval(() => {
+      setBusyElapsedSec(Math.floor((Date.now() - started) / 1000));
+    }, 1000);
+    return () => clearInterval(id);
+  }, [busy]);
+
+  const beginAbortableRequest = () => {
+    abortRef.current?.abort(new DOMException("superseded", "AbortError"));
+    const controller = new AbortController();
+    abortRef.current = controller;
+    return controller.signal;
+  };
+
+  const cancelBusy = () => {
+    abortRef.current?.abort(new DOMException("user", "AbortError"));
+  };
+
+  const reportRequestError = (e: unknown) => {
+    if (e instanceof DOMException && e.message === "superseded") return;
+    const msg = e instanceof Error ? e.message : String(e);
+    if (msg) setError(msg);
+  };
 
   useEffect(() => {
     const player = new TabPlayer();
@@ -215,7 +341,15 @@ export default function App() {
     return useSeparatedInput ? "用分离音频扒谱" : "用原音频扒谱";
   }, [loading, useSeparatedInput]);
 
-  const busy = loading || separating;
+  const busyStage = useMemo(
+    () => getBusyStage(separating, loading, separate, engine),
+    [separating, loading, separate, engine]
+  );
+
+  const busyReassurance = useMemo(
+    () => getBusyReassurance(busyElapsedSec),
+    [busyElapsedSec]
+  );
 
   const resetPlayback = useCallback(() => {
     const player = playerRef.current;
@@ -358,15 +492,16 @@ export default function App() {
   };
 
   const runSeparateOnly = async () => {
-    if (!file || separate === "none") return;
+    if (!file || separate === "none" || backendOffline) return;
     resetPlayback();
     setSeparating(true);
     setError(null);
     setSeparationResult(null);
     setSeparatedFile(null);
     setUseSeparatedForTranscribe(false);
+    const signal = beginAbortableRequest();
     try {
-      const res = await separateAudio(file, separate);
+      const res = await separateAudio(file, separate, signal);
       setSeparationResult(res);
       const sepFile = separationResultToFile(res, file.name);
       if (sepFile) {
@@ -374,50 +509,62 @@ export default function App() {
         setUseSeparatedForTranscribe(true);
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      reportRequestError(e);
     } finally {
       setSeparating(false);
+      abortRef.current = null;
     }
   };
 
   const runTranscribeOnly = async () => {
-    if (!file) return;
+    if (!file || backendOffline) return;
     const input =
       useSeparatedForTranscribe && separatedFile ? separatedFile : file;
     resetPlayback();
     setLoading(true);
     setError(null);
     setResult(null);
+    const signal = beginAbortableRequest();
     try {
-      const res = await transcribe(input, {
-        engine,
-        degree,
-        chord_complexity: chordComplexity,
-        quantize: quant,
-        separate: "none",
-      });
+      const res = await transcribe(
+        input,
+        {
+          engine,
+          degree,
+          chord_complexity: chordComplexity,
+          quantize: quant,
+          separate: "none",
+        },
+        signal
+      );
       setResult(res);
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      reportRequestError(e);
     } finally {
       setLoading(false);
+      abortRef.current = null;
     }
   };
 
   const runSeparateAndTranscribe = async () => {
-    if (!file || separate === "none") return;
+    if (!file || separate === "none" || backendOffline) return;
     resetPlayback();
     setLoading(true);
     setError(null);
     setResult(null);
+    const signal = beginAbortableRequest();
     try {
-      const res = await transcribe(file, {
-        engine,
-        degree,
-        chord_complexity: chordComplexity,
-        quantize: quant,
-        separate,
-      });
+      const res = await transcribe(
+        file,
+        {
+          engine,
+          degree,
+          chord_complexity: chordComplexity,
+          quantize: quant,
+          separate,
+        },
+        signal
+      );
       setResult(res);
       if (res.processed_audio_base64) {
         const sepRes: SeparationResult = {
@@ -436,9 +583,10 @@ export default function App() {
         }
       }
     } catch (e) {
-      setError(e instanceof Error ? e.message : String(e));
+      reportRequestError(e);
     } finally {
       setLoading(false);
+      abortRef.current = null;
     }
   };
 
@@ -531,6 +679,17 @@ export default function App() {
         <p>上传音频，自动识别并生成吉他六线谱（TAB）与五线谱</p>
       </header>
 
+      {backendStatus === "checking" && (
+        <div className="backend-banner backend-checking">
+          正在检测后端…
+        </div>
+      )}
+      {backendOffline && !busy && (
+        <div className="backend-banner backend-offline">
+          后端服务不可用，扒谱/分离暂不可用。NAS 上可检查 Docker 后端容器是否运行。
+        </div>
+      )}
+
       {/* 1. 上传 */}
       <div className="panel">
         <div
@@ -611,18 +770,16 @@ export default function App() {
             <div className="control">
               <h3>
                 人声分离 (Demucs)
-                <span className={`badge ${separateOk ? "on" : ""}`}>
-                  {separateOk === null
-                    ? "检测中"
-                    : separateOk
-                    ? "可用"
-                    : "未安装"}
+                <span className={`badge ${capabilityBadgeOn(separateOk) ? "on" : ""}`}>
+                  {capabilityBadgeLabel(separateOk)}
                 </span>
               </h3>
               <div className="segment">
                 {SEPARATES.map((o) => {
                   const disabled =
-                    busy || (o.id !== "none" && separateOk === false);
+                    busy ||
+                    backendOffline ||
+                    (o.id !== "none" && separateOk !== "available");
                   return (
                     <div
                       key={o.id}
@@ -644,7 +801,9 @@ export default function App() {
               <div className="segment">
                 {ENGINES.map((o) => {
                   const disabled =
-                    busy || (o.id === "advanced" && advancedOk === false);
+                    busy ||
+                    backendOffline ||
+                    (o.id === "advanced" && advancedOk !== "available");
                   return (
                     <div
                       key={o.id}
@@ -656,12 +815,10 @@ export default function App() {
                       <div className="t">
                         {o.title}
                         {o.id === "advanced" && (
-                          <span className={`badge ${advancedOk ? "on" : ""}`}>
-                            {advancedOk === null
-                              ? "检测中"
-                              : advancedOk
-                              ? "可用"
-                              : "未安装"}
+                          <span
+                            className={`badge ${capabilityBadgeOn(advancedOk) ? "on" : ""}`}
+                          >
+                            {capabilityBadgeLabel(advancedOk)}
                           </span>
                         )}
                       </div>
@@ -757,20 +914,23 @@ export default function App() {
           )}
 
           <div className="row" style={{ marginTop: 20, flexWrap: "wrap", gap: 10 }}>
-            {separateOk !== false && (
+            {(separateOk === "available" || separateOk === "loading") && (
               <>
                 <button
                   className="btn ghost"
                   disabled={
                     busy ||
+                    backendOffline ||
                     separate === "none" ||
-                    separateOk === null
+                    separateOk === "loading"
                   }
                   title={
                     separate === "none"
                       ? "请先在上方选择分离模式（如「去人声」）"
-                      : separateOk === null
+                      : separateOk === "loading"
                       ? "正在检测 Demucs 是否可用"
+                      : backendOffline
+                      ? "后端服务不可用"
                       : undefined
                   }
                   onClick={runSeparateOnly}
@@ -782,14 +942,17 @@ export default function App() {
                   className="btn"
                   disabled={
                     busy ||
+                    backendOffline ||
                     separate === "none" ||
-                    separateOk === null
+                    separateOk === "loading"
                   }
                   title={
                     separate === "none"
                       ? "请先在上方选择分离模式（如「去人声」）"
-                      : separateOk === null
+                      : separateOk === "loading"
                       ? "正在检测 Demucs 是否可用"
+                      : backendOffline
+                      ? "后端服务不可用"
                       : undefined
                   }
                   onClick={runSeparateAndTranscribe}
@@ -801,21 +964,44 @@ export default function App() {
             )}
             <button
               className="btn"
-              disabled={busy}
+              disabled={busy || backendOffline}
+              title={backendOffline ? "后端服务不可用" : undefined}
               onClick={runTranscribeOnly}
             >
               {loading && <span className="spinner" />}
               {transcribeButtonLabel}
             </button>
             {busy && (
-              <span style={{ color: "var(--muted)", fontSize: 13 }}>
-                {separating
-                  ? "Demucs 分离可能较慢（首次运行需下载模型）"
-                  : separate !== "none"
-                  ? "分离并扒谱会先做人声分离"
-                  : "首次运行进阶引擎可能较慢（加载模型）"}
-              </span>
+              <button
+                type="button"
+                className="btn ghost"
+                onClick={cancelBusy}
+              >
+                取消
+              </button>
             )}
+          </div>
+        </div>
+      )}
+
+      {busy && (
+        <div className="panel panel-busy">
+          <div className="busy-status">
+            <div className="busy-status-head">
+              <span className="spinner" />
+              <strong>{busyStage.title}</strong>
+              {healthOk && busyElapsedSec >= 30 && (
+                <span className="backend-online-hint">后端在线</span>
+              )}
+            </div>
+            <p className="busy-status-sub">{busyStage.subtitle}</p>
+            <p className="busy-status-elapsed">
+              已处理 {formatBusyElapsed(busyElapsedSec)} · 请勿关闭页面
+            </p>
+            {busyReassurance && (
+              <p className="busy-status-hint">{busyReassurance}</p>
+            )}
+            <div className="progress-indeterminate" aria-hidden="true" />
           </div>
         </div>
       )}
