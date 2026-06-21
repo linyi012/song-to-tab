@@ -245,6 +245,7 @@ docker compose --env-file .env.example up -d
 | 页面能开但上传失败 | 后端未就绪或构建失败 | `docker compose --env-file .env.example logs backend`（或 `.env.full.example`） |
 | 完整版无 Demucs / 进阶引擎 | 用了基础版 env，或 optional 依赖未装上 | 确认使用 `--env-file .env.full.example`；`curl http://localhost:60901/api/` 中两项应为 `true` |
 | 首次分离很慢 | Demucs 下载模型 + CPU 推理 | 正常现象，后续会使用 `model-cache` 卷中的缓存 |
+| 分离超时报错 | Demucs 子进程 / Nginx / 前端 fetch 任一环节过短 | 默认均为 3600s；NAS 上重建：`up -d --build` |
 | 改代码后页面无变化 | 未重建镜像 | 对应用 `--env-file` 执行 `up -d --build` |
 | Windows 下 `cp` 报错 | PowerShell 无 `cp` | 使用 `Copy-Item .env.example .env`（仅复制配置时需要） |
 
@@ -329,7 +330,7 @@ Demucs 分离、basic-pitch 进阶扒谱、能力探测默认在**子进程**中
 |------|------|------|
 | `SONG_TO_TAB_ISOLATE_HEAVY` | `true` | `false` 时重任务回到进程内（调试用） |
 | `SONG_TO_TAB_CAPABILITY_CACHE_TTL` | `300` | 能力检测缓存秒数 |
-| `SONG_TO_TAB_WORKER_TIMEOUT_SEPARATE` | `600` | Demucs 分离超时 |
+| `SONG_TO_TAB_WORKER_TIMEOUT_SEPARATE` | `3600` | Demucs 分离超时（秒） |
 | `SONG_TO_TAB_WORKER_TIMEOUT_POLYPHONIC` | `300` | basic-pitch 超时 |
 | `SONG_TO_TAB_WORKER_TIMEOUT_PROBE` | `120` | 能力探测超时 |
 

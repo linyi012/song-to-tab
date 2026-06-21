@@ -41,7 +41,7 @@ def separate_unavailable_reason() -> Optional[str]:
 
 
 def _separate_timeout() -> int:
-    return isolated.env_int("SONG_TO_TAB_WORKER_TIMEOUT_SEPARATE", 600)
+    return isolated.env_int("SONG_TO_TAB_WORKER_TIMEOUT_SEPARATE", 3600)
 
 
 def _run_separation_impl(path: str, mode: str) -> Tuple[Optional[str], Optional[str]]:

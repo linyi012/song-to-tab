@@ -44,13 +44,17 @@ def run_worker(
     if module is None:
         return {"ok": False, "error": f"未知 worker: {worker}"}
 
-    proc = subprocess.run(
-        [sys.executable, "-m", module],
-        input=json.dumps(payload),
-        capture_output=True,
-        text=True,
-        timeout=timeout,
-    )
+    try:
+        proc = subprocess.run(
+            [sys.executable, "-m", module],
+            input=json.dumps(payload),
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired:
+        limit = timeout if timeout is not None else "?"
+        return {"ok": False, "error": f"任务超时（超过 {limit} 秒）"}
 
     if proc.returncode == _OOM_EXIT:
         return {"ok": False, "error": _oom_message()}

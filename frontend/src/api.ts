@@ -229,7 +229,7 @@ export async function transcribe(
     res = await apiFetch(
       "/transcribe",
       { method: "POST", body: form },
-      { timeoutMs: 1_800_000, signal }
+      { timeoutMs: 3_600_000, signal }
     );
   } catch (err) {
     throw new Error(formatFetchError(err));
@@ -258,7 +258,7 @@ export async function separateAudio(
     res = await apiFetch(
       "/separate",
       { method: "POST", body: form },
-      { timeoutMs: 1_800_000, signal }
+      { timeoutMs: 3_600_000, signal }
     );
   } catch (err) {
     throw new Error(formatFetchError(err));

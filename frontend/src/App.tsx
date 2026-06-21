@@ -158,10 +158,10 @@ function getBusyReassurance(elapsedSec: number): string | null {
   if (elapsedSec < 600) {
     return "已处理较长时间。Demucs / 长音频可能需 5–15 分钟，可继续等待或点取消。";
   }
-  if (elapsedSec < 1800) {
-    return "仍在处理中（NAS 上可能更慢）。最长约 30 分钟，可继续等待或点取消。";
+  if (elapsedSec < 3600) {
+    return "仍在处理中（NAS 上可能更慢）。最长约 60 分钟，可继续等待或点取消。";
   }
-  return "已超 30 分钟。若确认音频不长，可取消后检查 NAS 容器内存/日志。";
+  return "已超 60 分钟。若确认音频不长，可取消后检查 NAS 容器内存/日志。";
 }
 
 function formatBusyElapsed(elapsedSec: number): string {
